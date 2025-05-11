@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Animated Digital Clock</title>
+    <link href="https://fonts.googleapis.com/css?family=Orbitron:700" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(-45deg, #0fffc1, #7e5fff, #ff5e62, #ffb560, #0fffc1);
+            background-size: 400% 400%;
+            animation: gradientBG 10s ease-in-out infinite;
+        }
+        @keyframes gradientBG {
+            0% {background-position: 0% 50%;}
+            50% {background-position: 100% 50%;}
+            100% {background-position: 0% 50%;}
+        }
+        .clock {
+            display: flex;
+            font-family: 'Orbitron', monospace;
+            font-size: 6rem;
+            color: #fff;
+            letter-spacing: 0.2em;
+            background: rgba(0,0,0,0.6);
+            border-radius: 30px;
+            padding: 50px 70px;
+            box-shadow: 0 0 60px 10px #00ffe7a0, 0 0 0 10px #fff1 inset;
+            position: relative;
+            overflow: hidden;
+        }
+        .clock::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 30px;
+            pointer-events: none;
+            box-shadow: 0 0 80px 10px #7e5fff, 0 0 40px 10px #0fffc1 inset;
+            opacity: 0.5;
+            animation: borderGlow 3s infinite alternate;
+        }
+        @keyframes borderGlow {
+            0% { box-shadow: 0 0 80px 10px #7e5fff, 0 0 40px 10px #0fffc1 inset;}
+            100% { box-shadow: 0 0 120px 20px #ff5e62, 0 0 80px 20px #ffb560 inset;}
+        }
+        .digit {
+            display: inline-block;
+            min-width: 1em;
+            text-align: center;
+            perspective: 400px;
+            transition: color 0.3s;
+            margin: 0 0.05em;
+            position: relative;
+        }
+        .digit-inner {
+            display: inline-block;
+            transition: transform 0.5s cubic-bezier(.68,-0.55,.27,1.55), color 0.3s;
+            will-change: transform;
+        }
+        .digit.flipping .digit-inner {
+            animation: flip 0.5s;
+        }
+        @keyframes flip {
+            0% { transform: rotateX(0deg);}
+            50% { transform: rotateX(90deg) scaleY(1.2);}
+            51% { color: #ffb560;}
+            100% { transform: rotateX(0deg);}
+        }
+        .colon {
+            color: #ff5e62;
+            text-shadow: 0 0 20px #ff5e62, 0 0 40px #fff;
+            animation: pulse 1s infinite alternate;
+            margin: 0 0.1em;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; text-shadow: 0 0 20px #ff5e62, 0 0 40px #fff;}
+            100% { opacity: 0.5; text-shadow: 0 0 40px #ffb560, 0 0 80px #fff;}
+        }
+    </style>
+</head>
+<body>
+    <button id="toggleFormat" style="
+        position: absolute;
+        top: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 16px 32px;
+        font-size: 1.2rem;
+        font-family: 'Orbitron', monospace;
+        background: linear-gradient(90deg, #7e5fff, #0fffc1);
+        color: #fff;
+        border: none;
+        border-radius: 30px;
+        box-shadow: 0 0 20px #7e5fff80;
+        cursor: pointer;
+        transition: background 0.5s, box-shadow 0.5s, transform 0.2s;
+        z-index: 10;
+        outline: none;
+    "
+    onmouseover="this.style.transform='translateX(-50%) scale(1.07)'"
+    onmouseout="this.style.transform='translateX(-50%)'"
+    >Switch to 12-hour</button>
+    <div class="clock" id="clock">
+        <!-- Digits will be injected here -->
+    </div>
+    <script>
+        const clock = document.getElementById('clock');
+        const toggleBtn = document.getElementById('toggleFormat');
+        let is12Hour = false;
+
+        function pad(num) {
+            return num < 10 ? '0' + num : num;
+        }
+
+        function getTimeDigits() {
+            const now = new Date();
+            let h = now.getHours();
+            let ampm = '';
+            if (is12Hour) {
+                ampm = h >= 12 ? ' PM' : ' AM';
+                h = h % 12;
+                if (h === 0) h = 12;
+            }
+            const m = pad(now.getMinutes());
+            const s = pad(now.getSeconds());
+            let timeStr = pad(h) + ':' + m + ':' + s;
+            if (is12Hour) timeStr += ampm;
+            return timeStr.split('');
+        }
+
+        function renderClock(digits, prevDigits = []) {
+            clock.innerHTML = '';
+            digits.forEach((char, i) => {
+                if (char === ':') {
+                    const colon = document.createElement('span');
+                    colon.className = 'colon';
+                    colon.textContent = ':';
+                    clock.appendChild(colon);
+                } else if (char === ' ') {
+                    const space = document.createElement('span');
+                    space.style.display = 'inline-block';
+                    space.style.width = '0.5em';
+                    clock.appendChild(space);
+                } else {
+                    const digit = document.createElement('span');
+                    digit.className = 'digit';
+                    const digitInner = document.createElement('span');
+                    digitInner.className = 'digit-inner';
+                    digitInner.textContent = char;
+                    digit.appendChild(digitInner);
+
+                    if (prevDigits[i] !== undefined && prevDigits[i] !== char) {
+                        digit.classList.add('flipping');
+                        setTimeout(() => digit.classList.remove('flipping'), 500);
+                    }
+                    clock.appendChild(digit);
+                }
+            });
+        }
+
+        let prevDigits = [];
+        function updateClock() {
+            const digits = getTimeDigits();
+            renderClock(digits, prevDigits);
+            prevDigits = digits;
+        }
+
+        toggleBtn.addEventListener('click', function() {
+            is12Hour = !is12Hour;
+            toggleBtn.textContent = is12Hour ? 'Switch to 24-hour' : 'Switch to 12-hour';
+            prevDigits = []; // Force animation on all digits
+            updateClock();
+        });
+
+        updateClock();
+        setInterval(updateClock, 1000);
+    </script>
+</body>
+</html>
